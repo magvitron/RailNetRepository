@@ -1,0 +1,166 @@
+######################################
+# main.py
+######################################
+#dependency: guizero, Tkinter
+#
+######################################
+import os
+import time
+from guizero import *
+import ftplib
+import serial
+import re
+import csv
+
+GPScount=0
+latitude = None
+longitude = None
+
+ser = serial.Serial(
+    port='/dev/ttyUSB0',\
+    baudrate=9600,\
+    parity=serial.PARITY_NONE,\
+    stopbits=serial.STOPBITS_ONE,\
+    bytesize=serial.EIGHTBITS,\
+        timeout=0)
+#all definitions
+#take videos
+def readGPS():
+  
+  print("connected to: " + ser.portstr)
+  txt=""
+  global latitude
+  global longitude
+  while 1: 
+      txt = ser.readline()
+      if txt != "" and 'GPGGA'.encode() in txt:
+          while 'M'.encode() not in txt:
+              txt += ser.readline()
+          searchObj = re.search( r'\$.*?,.*?,(.*?),(.+?),(.*?),(.+?),(\d)?,.*?,', txt.decode(), re.M|re.I)
+          if searchObj:
+              latitude = (searchObj.group(1))
+              longitude = (searchObj.group(3))
+              print (searchObj.group(1) + searchObj.group(2))
+              print (searchObj.group(3) + searchObj.group(4))
+              print (searchObj.group(5))
+              if searchObj.group(1) !="":
+                  return 1;
+                  break
+              else:
+                  global GPScount
+                  GPScount = GPScount + 1
+                  if GPScount > 10:
+                      return 0;
+                      break
+
+def do_nothing(val):
+  print("got" + val)
+  confwindow.show()
+  
+  pic = Picture(confwindow,image="Alert.jpg", grid=[0,0,2,1])
+  buttonNo = PushButton(confwindow, command=recordVideo, args = "1", image="NO.jpg", grid=[0,1])
+  buttonYes = PushButton(confwindow, command=recordVideo, args = "2",image="YES.jpg", grid=[1,1])
+  return;
+
+def recordVideo(btnval):
+  if btnval=="2":
+    #ffmpeg -f v4l2 -r 25 -s 640x480 -i /dev/video0 out.avi
+    cmd ='ffmpeg -y -f v4l2 -r 25 -t 00:00:10 -video_size 1280x720 -i /dev/video0 '
+    #cmd += time.strftime("%Y_%m_%d_%H_%M")
+    cmd+="movie.avi"
+    #fname = time.strftime("%Y_%m_%d_%H_%M")
+    os.system(cmd)
+    cmd='ffmpeg -y -i movie.avi -preset ultrafast -crf 27 movie.mp4'
+    os.system(cmd)
+
+    confwindow.hide()
+    window.hide()
+    print("upload....")
+    session = ftplib.FTP('indianrailwaytest.atwebpages.com','2836956_railtest','akhil01234')
+    file = open('movie.mp4','rb')                  # file to send
+    session.storbinary('STOR movie.mp4', file)     # send the file
+    file.close()                                    # close file and FTP
+    session.quit()
+    print("done")
+  else:
+    print ("exit")
+    confwindow.hide()
+    window.hide()
+
+def EMGSTOP():
+  window.show()
+  #button = PushButton(app, command=do_nothing, text="hello", grid=[0,0])
+  button1 = PushButton(window, command=do_nothing, args = "1",image="num1.jpg", grid=[0,0])
+  button2 = PushButton(window, command=do_nothing, args = "2", image="num2.jpg", grid=[1,0])
+  button3  = PushButton(window, command=do_nothing,  args = "3",image="NUM3.jpg", grid=[2,0])
+  button4  = PushButton(window, command=do_nothing,  args = "4",image="NUM4.jpg", grid=[0,1])
+  button5  = PushButton(window, command=do_nothing,  args = "5",image="NUM5.jpg", grid=[1,1])
+  button6  = PushButton(window, command=do_nothing,  args = "6",image="NUM6.jpg", grid=[2,1])  
+def convertNema(inval):
+	searchObj = re.search( r'(\d{2})?(\d{2}\.\d+)', inval, re.M|re.I)
+	degree = float(searchObj.group(1)) + (float(searchObj.group(2)))/60
+	return degree
+#set destination alarm
+def DestAlarm():
+  print("DestinationAlarm")
+  destAlrm.show()
+def track():
+  print("Live tracking")
+  destAlrm.show()
+  station_found=0
+  if readGPS() == 1:
+    flag=0
+    print("Currrent Latitude:" + latitude + ", long: " + longitude) 
+    with open('stationList.csv') as csvfile:
+      readCSV = csv.reader(csvfile, delimiter=',')
+      for row in readCSV:
+        print ("GPS: " + str(abs(convertNema(latitude)-convertNema(row[0]))) + " Read: " + str(abs(convertNema(longitude)-convertNema(row[1]))))
+        if (abs(convertNema(latitude)-convertNema(row[0])) < .05 and abs(convertNema(longitude)-convertNema(row[1])) < .05):
+          print (row[2])
+          station_found=1
+          flag=1
+          Text(destAlrm,"Current Station: " + row[2],size = 50,grid=[0,1],color ="white")
+      if flag==1:
+          flag=0
+          Text(destAlrm,"Left Station: " + row[2],size = 50,grid=[0,0],color ="white")
+  else:
+    Text(destAlrm,"ERROR WITH GPS!",size = 24,grid=[0,0])
+    
+def MedEmerg():
+  print("Medical Emergency")
+  medEm.show()
+def callTT():
+  print ("Call TT")
+  calTTTwnd.show()
+######################################
+app = App(title="RailRakshak", width=1024,height=600, layout="grid",bg="black")
+destAlrm = Window(app, width=1024,height=600, layout="grid",bg="black")
+LiveTrack = Window(app, width=1024,height=600, layout="grid",bg="black")
+confwindow = Window(app, width=1024,height=600,layout="grid",bg="black")
+window = Window(app, width=1024,height=600,layout="grid",bg="black")
+calTTTwnd = Window(app, width=1024,height=600,layout="grid",bg="black")
+medEm = Window(app, width=1024,height=600,layout="grid",bg="black")
+
+medEm.hide()
+calTTTwnd.hide()
+LiveTrack.hide()
+destAlrm.hide()
+window.hide() 
+confwindow.hide()
+
+#app.tk.overrideredirect(True)
+#app.tk.geometry("{0}x{1}+0+0".format(app.tk.winfo_screenwidth(), app.tk.winfo_screenheight()))
+#app.tk.resizable(width=0, height=0)
+#app.tk.protocol('WM_DELETE_WINDOW','donothing')
+#app.tk.wm_attributes('-type', 'splash')
+#app.tk.wm_attributes('-fullscreen','true')
+#all buttons are defined here
+
+button = PushButton(app, command=EMGSTOP,image="EMSTP.jpg",grid=[2,0])
+button = PushButton(app, command=track,image="rail rakshak.jpg",grid=[2,1])
+button = PushButton(app, command=MedEmerg,image="Medical.jpg",grid=[0,0])
+button = PushButton(app, command=callTT,image="TT.jpg",grid=[1,0])
+button = PushButton(app, command=DestAlarm,image="DestAlarm.jpg",grid=[1,1])
+button = PushButton(app, command=track,image="train running info.jpg",grid=[0,1])
+
+app.display()

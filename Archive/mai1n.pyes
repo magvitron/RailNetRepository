@@ -1,0 +1,46 @@
+######################################
+# main.py
+######################################
+#dependency: guizero, Tkinter
+#
+######################################
+import os
+import time
+from guizero import *
+
+
+
+
+#all definitions
+#take videos
+def EMGSTOP():
+  print("Button was pressed")
+  cmd ='ffmpeg -f v4l2 -framerate 25 -t 00:00:10 -video_size 1280x720 -i /dev/video0 '
+ # cmd ='ffmpeg -f v4l2 -r 25 -t 00:00:10 -s "1280x720" -i /dev/video0 ' 
+  cmd += time.strftime("%Y_%m_%d_%H_%M_%S")
+  cmd += '.avi' 
+  os.system(cmd)
+  window = Window(app, title="2nd window")
+  #time.sleep(TIME)
+#set destination alarm
+def DestAlarm():
+  print("DestinationAlarm")
+def MedEmerg():
+  print("Medical Emergency")
+######################################
+app = App(title="RailRakshak", width=1024,height=600, layout="grid")
+app.tk.overrideredirect(True)
+app.tk.geometry("{0}x{1}+0+0".format(app.tk.winfo_screenwidth(), app.tk.winfo_screenheight()))
+app.tk.resizable(width=0, height=0)
+app.tk.protocol('WM_DELETE_WINDOW','donothing')
+app.tk.wm_attributes('-type', 'splash')
+app.tk.wm_attributes('-fullscreen','true')
+#all buttons are defined here
+button = PushButton(app, command=EMGSTOP,image="EMSTP.png",grid=[2,0,1,2])
+button = PushButton(app, command=MedEmerg,image="Medical.png",grid=[0,0])
+button = PushButton(app, command=DestAlarm,image="TT.png",grid=[1,0])
+button = PushButton(app, command=DestAlarm,image="DestAlarm.png",grid=[1,1])
+button = PushButton(app, command=DestAlarm,image="dest.png",grid=[0,1])
+
+app.display()
+
